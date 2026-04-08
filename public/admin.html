@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CardioPredict | Admin Dashboard</title>
+  <meta name="description" content="Admin dashboard for CardioPredict – Manage users and view prediction analytics." />
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: { extend: { fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] } } }
+    }
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: linear-gradient(135deg, #0a0005 0%, #1a0010 30%, #2d0a15 60%, #0a0005 100%);
+      background-attachment: fixed;
+      min-height: 100vh;
+      color: #fff;
+    }
+    .glass { background: rgba(255,255,255,0.05); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); }
+    .stat-card {
+      background: rgba(255,255,255,0.04);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 1.25rem;
+      padding: 1.5rem;
+      transition: all 0.3s ease;
+    }
+    .stat-card:hover { border-color: rgba(244,63,122,0.25); transform: translateY(-3px); box-shadow: 0 15px 40px rgba(185,28,76,0.1); }
+    .table-row { transition: background 0.2s; }
+    .table-row:hover { background: rgba(255,255,255,0.03); }
+    .badge { display: inline-block; padding: 3px 10px; border-radius: 99px; font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
+    .badge-admin { background: rgba(168,85,247,0.2); color: #c084fc; }
+    .badge-user  { background: rgba(59,130,246,0.2);  color: #93c5fd; }
+    .badge-high   { background: rgba(239,68,68,0.2);  color: #fca5a5; }
+    .badge-medium { background: rgba(234,179,8,0.2);  color: #fde047; }
+    .badge-low    { background: rgba(34,197,94,0.2);  color: #86efac; }
+    .glow-btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 10px 20px; border-radius: 12px; border: none;
+      font-family: 'Inter'; font-weight: 700; font-size: 0.85rem;
+      color: #fff; background: linear-gradient(135deg, #b91c4c, #e11d60); cursor: pointer;
+      transition: transform 0.3s, box-shadow 0.3s;
+      box-shadow: 0 4px 20px rgba(225,29,96,0.3);
+    }
+    .glow-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 35px rgba(225,29,96,0.5); }
+    .sidebar-link {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 16px; border-radius: 12px; font-size: 0.85rem;
+      color: rgba(255,255,255,0.5); transition: all 0.2s; cursor: pointer;
+      font-weight: 500;
+    }
+    .sidebar-link:hover, .sidebar-link.active {
+      color: #fff; background: rgba(244,63,122,0.12);
+    }
+    .sidebar-link.active { font-weight: 700; }
+
+    /* Loader */
+    #admin-loader {
+      position: fixed; inset: 0; z-index: 9999;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      background: linear-gradient(135deg, #0a0005, #1a0010, #0a0005);
+      transition: opacity 0.6s, visibility 0.6s;
+    }
+    #admin-loader.fade-out { opacity: 0; visibility: hidden; pointer-events: none; }
+    .pulse-ring {
+      width: 60px; height: 60px; border-radius: 50%;
+      border: 3px solid rgba(244,63,122,0.4);
+      animation: pulseRing 1.4s ease-out infinite;
+    }
+    @keyframes pulseRing { 0% { transform: scale(0.8); opacity: 1; } 100% { transform: scale(1.6); opacity: 0; } }
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); }
+    ::-webkit-scrollbar-thumb { background: rgba(185,28,76,0.4); border-radius: 3px; }
+  </style>
+</head>
+
+<body>
+  <!-- LOADER -->
+  <div id="admin-loader">
+    <div class="pulse-ring"></div>
+    <p style="color:rgba(244,63,122,0.6); font-size:0.8rem; font-weight:600; letter-spacing:0.1em; margin-top:20px;">Loading Dashboard...</p>
+  </div>
+
+  <div class="flex min-h-screen">
+    <!-- ═══════ SIDEBAR ═══════ -->
+    <aside class="hidden lg:flex flex-col w-64 p-6 border-r border-white/5 glass sticky top-0 h-screen">
+      <div class="flex items-center gap-2 mb-10">
+        <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-red-500 to-pink-600 flex items-center justify-center shadow-lg shadow-red-500/30">
+          <i data-lucide="heart-pulse" class="w-5 h-5 text-white"></i>
+        </div>
+        <span class="font-bold text-lg bg-gradient-to-r from-red-300 to-pink-300 bg-clip-text text-transparent">Admin Panel</span>
+      </div>
+
+      <nav class="space-y-2 flex-1">
+        <div class="sidebar-link active" data-section="overview">
+          <i data-lucide="layout-dashboard" style="width:18px; height:18px;"></i> Overview
+        </div>
+        <div class="sidebar-link" data-section="users">
+          <i data-lucide="users" style="width:18px; height:18px;"></i> Users
+        </div>
+        <div class="sidebar-link" data-section="predictions">
+          <i data-lucide="activity" style="width:18px; height:18px;"></i> Predictions
+        </div>
+      </nav>
+
+      <div class="mt-auto pt-6 border-t border-white/5">
+        <div class="flex items-center gap-3 mb-4">
+          <div class="w-9 h-9 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-xs font-bold" id="admin-avatar">A</div>
+          <div>
+            <div class="text-sm font-semibold" id="admin-name">Admin</div>
+            <div class="text-xs text-white/30" id="admin-email">admin@mail.com</div>
+          </div>
+        </div>
+        <button class="sidebar-link w-full text-red-400/70 hover:text-red-400" id="btn-logout">
+          <i data-lucide="log-out" style="width:18px; height:18px;"></i> Sign Out
+        </button>
+      </div>
+    </aside>
+
+    <!-- ═══════ MAIN CONTENT ═══════ -->
+    <main class="flex-1 p-4 sm:p-6 lg:p-10 overflow-y-auto">
+      <!-- Top bar (mobile) -->
+      <div class="flex items-center justify-between mb-8 lg:hidden">
+        <div class="flex items-center gap-2">
+          <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-red-500 to-pink-600 flex items-center justify-center">
+            <i data-lucide="heart-pulse" class="w-4 h-4 text-white"></i>
+          </div>
+          <span class="font-bold">Admin</span>
+        </div>
+        <button class="glow-btn text-xs" id="btn-logout-mobile">
+          <i data-lucide="log-out" style="width:14px; height:14px;"></i> Logout
+        </button>
+      </div>
+
+      <h1 class="text-2xl sm:text-3xl font-bold mb-2">Dashboard</h1>
+      <p class="text-white/40 text-sm mb-8">Monitor predictions and manage users across CardioPredict.</p>
+
+      <!-- ─── STATS CARDS ─── -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-10" id="stats-grid">
+        <div class="stat-card">
+          <div class="text-xs text-white/40 uppercase tracking-wider mb-2">Total Users</div>
+          <div class="text-3xl font-black text-blue-300" id="stat-users">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="text-xs text-white/40 uppercase tracking-wider mb-2">Total Predictions</div>
+          <div class="text-3xl font-black text-pink-300" id="stat-predictions">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="text-xs text-white/40 uppercase tracking-wider mb-2">High Risk Cases</div>
+          <div class="text-3xl font-black text-red-400" id="stat-high">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="text-xs text-white/40 uppercase tracking-wider mb-2">Admins</div>
+          <div class="text-3xl font-black text-purple-300" id="stat-admins">—</div>
+        </div>
+      </div>
+
+      <!-- ─── USERS TABLE ─── -->
+      <div class="mb-10">
+        <h2 class="text-lg font-bold mb-4 flex items-center gap-2">
+          <i data-lucide="users" style="width:20px; height:20px; color:#93c5fd;"></i> Registered Users
+        </h2>
+        <div class="glass rounded-2xl border border-white/5 overflow-hidden">
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="border-b border-white/5 text-left text-white/40 text-xs uppercase tracking-wider">
+                  <th class="p-4">Name</th>
+                  <th class="p-4">Email</th>
+                  <th class="p-4">Role</th>
+                  <th class="p-4">Joined</th>
+                </tr>
+              </thead>
+              <tbody id="users-tbody">
+                <tr><td colspan="4" class="p-8 text-center text-white/20">Loading users...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ─── RECENT PREDICTIONS ─── -->
+      <div class="mb-10">
+        <h2 class="text-lg font-bold mb-4 flex items-center gap-2">
+          <i data-lucide="activity" style="width:20px; height:20px; color:#f472b6;"></i> Recent Predictions
+        </h2>
+        <div class="glass rounded-2xl border border-white/5 overflow-hidden">
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="border-b border-white/5 text-left text-white/40 text-xs uppercase tracking-wider">
+                  <th class="p-4">Risk</th>
+                  <th class="p-4">Probability</th>
+                  <th class="p-4">Age</th>
+                  <th class="p-4">BP</th>
+                  <th class="p-4">Cholesterol</th>
+                  <th class="p-4">HR</th>
+                  <th class="p-4">Date</th>
+                </tr>
+              </thead>
+              <tbody id="predictions-tbody">
+                <tr><td colspan="7" class="p-8 text-center text-white/20">Loading predictions...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ─── BACK TO MAIN APP ─── -->
+      <div class="text-center mt-8">
+        <a href="index.html" class="inline-flex items-center gap-2 text-sm text-white/30 hover:text-pink-400 transition">
+          <i data-lucide="arrow-left" style="width:16px; height:16px;"></i> Back to Prediction App
+        </a>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    /* ============================================================
+       ADMIN DASHBOARD – Script
+       ============================================================ */
+
+    // Firebase config (same as login.html)
+    const firebaseConfig = {
+      apiKey:            "AIzaSyDZ3CKkMVRFqQv5jjEZHtxB9v5Pni3wUb4",
+      authDomain:        "disease-prediction-ff405.firebaseapp.com",
+      projectId:         "disease-prediction-ff405",
+      storageBucket:     "disease-prediction-ff405.firebasestorage.app",
+      messagingSenderId: "418439774812",
+      appId:             "1:418439774812:web:80e2cdf2e2dddfd2405c99",
+      measurementId:     "G-P1QHLX0YHS"
+    };
+
+    let db = null;
+    try {
+      firebase.initializeApp(firebaseConfig);
+      db = firebase.firestore();
+    } catch(e) {}
+
+    // Init icons
+    document.addEventListener("DOMContentLoaded", () => {
+      if (window.lucide) lucide.createIcons();
+    });
+
+    // Loader
+    window.addEventListener("load", () => {
+      setTimeout(() => document.getElementById("admin-loader").classList.add("fade-out"), 1500);
+    });
+
+    // ══════════ AUTH CHECK ══════════
+    const userData = JSON.parse(sessionStorage.getItem("cardio_user") || "null");
+    if (!userData || userData.role !== "admin") {
+      // Not admin → redirect to login
+      window.location.href = "login.html";
+    } else {
+      // Populate sidebar
+      document.getElementById("admin-name").textContent  = userData.name || "Admin";
+      document.getElementById("admin-email").textContent = userData.email || "";
+      document.getElementById("admin-avatar").textContent = (userData.name || "A").charAt(0).toUpperCase();
+    }
+
+    // ══════════ LOGOUT ══════════
+    function logout() {
+      sessionStorage.removeItem("cardio_user");
+      if (firebase.auth) firebase.auth().signOut().catch(() => {});
+      window.location.href = "login.html";
+    }
+    document.getElementById("btn-logout").addEventListener("click", logout);
+    document.getElementById("btn-logout-mobile").addEventListener("click", logout);
+
+    // ══════════ LOAD DATA ══════════
+    async function loadDashboard() {
+      if (!db) return;
+
+      try {
+        // Load users
+        const usersSnap = await db.collection("users").orderBy("createdAt", "desc").get();
+        let usersHtml = "";
+        let adminCount = 0;
+        usersSnap.forEach(doc => {
+          const u = doc.data();
+          if (u.role === "admin") adminCount++;
+          const date = u.createdAt ? new Date(u.createdAt.seconds * 1000).toLocaleDateString() : "—";
+          const badgeCls = u.role === "admin" ? "badge-admin" : "badge-user";
+          usersHtml += `
+            <tr class="table-row border-b border-white/5">
+              <td class="p-4 font-medium">${u.name || "—"}</td>
+              <td class="p-4 text-white/50">${u.email || "—"}</td>
+              <td class="p-4"><span class="badge ${badgeCls}">${u.role || "user"}</span></td>
+              <td class="p-4 text-white/30 text-xs">${date}</td>
+            </tr>`;
+        });
+        document.getElementById("users-tbody").innerHTML = usersHtml || '<tr><td colspan="4" class="p-8 text-center text-white/20">No users found</td></tr>';
+        document.getElementById("stat-users").textContent = usersSnap.size;
+        document.getElementById("stat-admins").textContent = adminCount;
+
+        // Load predictions
+        const predsSnap = await db.collection("predictions").orderBy("timestamp", "desc").limit(50).get();
+        let predsHtml = "";
+        let highCount = 0;
+        predsSnap.forEach(doc => {
+          const p = doc.data();
+          if (p.risk_level === "High") highCount++;
+          const date = p.timestamp ? new Date(p.timestamp.seconds * 1000).toLocaleDateString() : "—";
+          const badgeCls = p.risk_level === "High" ? "badge-high" : p.risk_level === "Medium" ? "badge-medium" : "badge-low";
+          predsHtml += `
+            <tr class="table-row border-b border-white/5">
+              <td class="p-4"><span class="badge ${badgeCls}">${p.risk_level || "—"}</span></td>
+              <td class="p-4 font-bold">${p.probability ? p.probability.toFixed(1) + "%" : "—"}</td>
+              <td class="p-4 text-white/50">${p.age || "—"}</td>
+              <td class="p-4 text-white/50">${p.blood_pressure || "—"}</td>
+              <td class="p-4 text-white/50">${p.cholesterol || "—"}</td>
+              <td class="p-4 text-white/50">${p.heart_rate || "—"}</td>
+              <td class="p-4 text-white/30 text-xs">${date}</td>
+            </tr>`;
+        });
+        document.getElementById("predictions-tbody").innerHTML = predsHtml || '<tr><td colspan="7" class="p-8 text-center text-white/20">No predictions found</td></tr>';
+        document.getElementById("stat-predictions").textContent = predsSnap.size;
+        document.getElementById("stat-high").textContent = highCount;
+
+      } catch(e) {
+        console.warn("Dashboard load error:", e.message);
+      }
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+      setTimeout(loadDashboard, 1800);
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+dist/
+build/
+*.egg
+venv/
+env/
+.venv/
+
+# Model (large binary - uncomment if you want to exclude)
+# heart_model.pkl
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Firebase (Android - not needed for web)
+google-services.json
+
+# Node
+node_modules/
+package-lock.json
+
+# Env
+.env
+.env.local

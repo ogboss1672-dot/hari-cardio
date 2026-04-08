@@ -1,0 +1,1048 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CardioPredict | Login</title>
+  <meta name="description" content="Login to CardioPredict – AI-Powered Heart Disease Prediction System" />
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] },
+        }
+      }
+    }
+  </script>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+
+  <style>
+    /* ── Base ─────────────────────────────────────────── */
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: #050005;
+      color: #fff;
+      height: 100vh;
+      overflow: hidden;
+      cursor: none;
+      position: relative;
+    }
+
+    /* ── LOADER ───────────────────────────────────────── */
+    #login-loader {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #0a0005 0%, #1a0010 50%, #050005 100%);
+      transition: opacity 0.8s ease, visibility 0.8s ease;
+    }
+    #login-loader.fade-out {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+    .heart-loader {
+      width: 80px;
+      height: 80px;
+      animation: heartbeat 1.2s ease-in-out infinite;
+    }
+    @keyframes heartbeat {
+      0%, 100% { transform: scale(1); }
+      15%      { transform: scale(1.3); }
+      30%      { transform: scale(1); }
+      45%      { transform: scale(1.15); }
+      60%      { transform: scale(1); }
+    }
+    .loader-progress {
+      width: 200px;
+      height: 3px;
+      background: rgba(255,255,255,0.08);
+      border-radius: 99px;
+      overflow: hidden;
+      margin-top: 24px;
+    }
+    .loader-progress-bar {
+      height: 100%;
+      background: linear-gradient(to right, #e11d60, #f43f7a);
+      border-radius: 99px;
+      animation: loadProgress 2.2s ease-in-out forwards;
+    }
+    @keyframes loadProgress {
+      0%   { width: 0%; }
+      100% { width: 100%; }
+    }
+
+    /* ── Custom Cursor ───────────────────────────────── */
+    #cursor-glow {
+      position: fixed;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 99999;
+      transform: translate(-50%, -50%);
+      transition: width 0.3s, height 0.3s, background 0.3s;
+      background: radial-gradient(circle, rgba(244,63,122,0.5), transparent 70%);
+      mix-blend-mode: screen;
+    }
+    #cursor-glow.hover {
+      width: 48px;
+      height: 48px;
+      background: radial-gradient(circle, rgba(255,120,170,0.6), transparent 70%);
+    }
+    @media (hover: none) and (pointer: coarse) {
+      #cursor-glow { display: none; }
+      body { cursor: auto; }
+    }
+    @media (max-width: 640px) {
+      #cursor-glow { display: none; }
+      body { cursor: auto; }
+    }
+
+    /* ── Lamp Structure ──────────────────────────────── */
+    .lamp-wrapper {
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .lamp-wire {
+      width: 3px;
+      height: 60px;
+      background: linear-gradient(to bottom, #333, #555);
+      border-radius: 2px;
+    }
+    .lamp-holder {
+      width: 50px;
+      height: 24px;
+      background: linear-gradient(to bottom, #444, #222);
+      border-radius: 6px 6px 0 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .lamp-bulb {
+      width: 42px;
+      height: 42px;
+      border-radius: 50% 50% 45% 45%;
+      background: radial-gradient(circle at 40% 35%,
+        rgba(255,255,200,calc(var(--lamp) * 0.9 + 0.1)),
+        rgba(200,150,50,calc(var(--lamp) * 0.6)),
+        rgba(80,40,10,0.3));
+      transition: all 0.4s ease;
+      box-shadow: 0 0 calc(var(--lamp) * 60px) calc(var(--lamp) * 20px) rgba(255,200,100,calc(var(--lamp) * 0.4));
+    }
+
+    /* ── Spotlight Cone ──────────────────────────────── */
+    .spotlight-cone {
+      position: absolute;
+      top: 120px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 0;
+      height: 0;
+      border-left:   calc(180px + var(--lamp) * 220px) solid transparent;
+      border-right:  calc(180px + var(--lamp) * 220px) solid transparent;
+      border-top:    calc(300px + var(--lamp) * 400px) solid rgba(255,235,170,calc(var(--lamp) * 0.06));
+      filter: blur(calc(30px + var(--lamp) * 20px));
+      transition: all 0.5s ease;
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    /* ── Ambient Radial Glow ─────────────────────────── */
+    .ambient-glow {
+      position: fixed;
+      inset: 0;
+      background: radial-gradient(ellipse at 50% 15%,
+        rgba(255,220,150,calc(var(--lamp) * 0.12)) 0%,
+        rgba(255,180,100,calc(var(--lamp) * 0.05)) 30%,
+        transparent 65%);
+      pointer-events: none;
+      z-index: 0;
+      transition: all 0.4s ease;
+    }
+
+    /* ── Brightness Slider ───────────────────────────── */
+    .slider-wrap {
+      position: fixed;
+      right: 30px;
+      top: 50%;
+      transform: translateY(-50%);
+      z-index: 50;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+    }
+    .slider-label {
+      writing-mode: vertical-rl;
+      text-orientation: mixed;
+      font-size: 0.65rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.3);
+      font-weight: 600;
+    }
+    input[type="range"].lamp-slider {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 180px;
+      height: 4px;
+      background: linear-gradient(to right, #333, #e11d60, #ffcc00);
+      border-radius: 99px;
+      outline: none;
+      transform: rotate(-90deg);
+      cursor: pointer;
+    }
+    input[type="range"].lamp-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: radial-gradient(circle, #fff, #f43f7a);
+      box-shadow: 0 0 12px rgba(244,63,122,0.6);
+      cursor: pointer;
+    }
+    input[type="range"].lamp-slider::-moz-range-thumb {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: radial-gradient(circle, #fff, #f43f7a);
+      box-shadow: 0 0 12px rgba(244,63,122,0.6);
+      border: none;
+      cursor: pointer;
+    }
+
+    /* ── Login Card ───────────────────────────────────── */
+    .login-card {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) translateY(20px);
+      width: 90%;
+      max-width: 420px;
+      padding: 40px 32px;
+      border-radius: 24px;
+      z-index: 20;
+
+      /* Glassmorphism */
+      background: rgba(255,255,255,0.04);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255,255,255,0.08);
+
+      /* Visibility controlled by lamp */
+      opacity: 0;
+      transition: opacity 0.6s ease, transform 0.6s ease, box-shadow 0.4s ease;
+      pointer-events: none;
+    }
+    .login-card.visible {
+      opacity: 1;
+      transform: translate(-50%, -50%) translateY(0);
+      pointer-events: auto;
+      box-shadow:
+        0 0 80px rgba(255,200,100,calc(var(--lamp) * 0.08)),
+        0 25px 60px rgba(0,0,0,0.5),
+        inset 0 1px 0 rgba(255,255,255,0.08);
+    }
+
+    /* ── Tabs ─────────────────────────────────────────── */
+    .tab-bar {
+      display: flex;
+      gap: 4px;
+      background: rgba(255,255,255,0.04);
+      border-radius: 14px;
+      padding: 4px;
+      margin-bottom: 28px;
+    }
+    .tab-btn {
+      flex: 1;
+      padding: 10px 0;
+      border-radius: 11px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: rgba(255,255,255,0.4);
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+    .tab-btn.active {
+      background: linear-gradient(135deg, rgba(185,28,76,0.4), rgba(244,63,122,0.3));
+      color: #fff;
+      box-shadow: 0 4px 20px rgba(225,29,96,0.25);
+    }
+    .tab-btn:hover:not(.active) {
+      color: rgba(255,255,255,0.7);
+      background: rgba(255,255,255,0.04);
+    }
+
+    /* ── Form panels ─────────────────────────────────── */
+    .form-panel { display: none; }
+    .form-panel.active { display: block; }
+
+    .login-title {
+      font-size: 1.5rem;
+      font-weight: 800;
+      margin-bottom: 4px;
+      background: linear-gradient(to right, #fff, #fda4bf);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .login-subtitle {
+      font-size: 0.8rem;
+      color: rgba(255,255,255,0.35);
+      margin-bottom: 24px;
+    }
+
+    /* ── Inputs ───────────────────────────────────────── */
+    .field-group {
+      margin-bottom: 16px;
+      position: relative;
+    }
+    .field-label {
+      display: block;
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: rgba(255,255,255,0.35);
+      margin-bottom: 6px;
+    }
+    .field-input {
+      width: 100%;
+      padding: 12px 14px 12px 40px;
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(255,255,255,0.05);
+      color: #fff;
+      font-size: 0.95rem;
+      outline: none;
+      transition: all 0.3s ease;
+      font-family: 'Inter', sans-serif;
+    }
+    .field-input::placeholder { color: rgba(255,255,255,0.2); }
+    .field-input:focus {
+      border-color: rgba(244,63,122,0.5);
+      box-shadow: 0 0 20px rgba(244,63,122,0.1);
+      background: rgba(255,255,255,0.07);
+    }
+    .field-input.error {
+      border-color: rgba(239,68,68,0.6) !important;
+    }
+    .field-icon {
+      position: absolute;
+      left: 14px;
+      top: 36px;
+      width: 16px;
+      height: 16px;
+      color: rgba(255,255,255,0.25);
+      pointer-events: none;
+    }
+    .field-error {
+      font-size: 0.7rem;
+      color: #f87171;
+      margin-top: 4px;
+      min-height: 18px;
+    }
+
+    /* ── Password toggle ─────────────────────────────── */
+    .pw-toggle {
+      position: absolute;
+      right: 14px;
+      top: 36px;
+      background: none;
+      border: none;
+      color: rgba(255,255,255,0.3);
+      cursor: pointer;
+      padding: 2px;
+      transition: color 0.2s;
+    }
+    .pw-toggle:hover { color: rgba(255,255,255,0.7); }
+
+    /* ── Role selector ───────────────────────────────── */
+    .role-selector {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    .role-option {
+      flex: 1;
+      padding: 12px;
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(255,255,255,0.03);
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.3s ease;
+    }
+    .role-option:hover {
+      border-color: rgba(244,63,122,0.3);
+      background: rgba(244,63,122,0.05);
+    }
+    .role-option.selected {
+      border-color: rgba(244,63,122,0.5);
+      background: rgba(244,63,122,0.1);
+      box-shadow: 0 0 20px rgba(244,63,122,0.1);
+    }
+    .role-option .role-icon { font-size: 1.3rem; margin-bottom: 4px; }
+    .role-option .role-name { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: rgba(255,255,255,0.6); }
+    .role-option.selected .role-name { color: #f43f7a; }
+
+    /* ── Submit Button ───────────────────────────────── */
+    .submit-btn {
+      width: 100%;
+      padding: 14px;
+      border-radius: 14px;
+      border: none;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #fff;
+      background: linear-gradient(135deg, #b91c4c, #e11d60, #f43f7a);
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+      transition: transform 0.3s, box-shadow 0.3s;
+      box-shadow: 0 4px 25px rgba(225,29,96,0.35);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    .submit-btn::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(255,255,255,0.15), transparent 60%);
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    .submit-btn:hover {
+      transform: translateY(-2px) scale(1.01);
+      box-shadow: 0 8px 40px rgba(225,29,96,0.5);
+    }
+    .submit-btn:hover::before { opacity: 1; }
+    .submit-btn:active { transform: scale(0.98); }
+    .submit-btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none !important;
+    }
+    .btn-spinner {
+      display: none;
+      animation: spin 1s linear infinite;
+    }
+    .btn-spinner.show { display: block; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Alert box ───────────────────────────────────── */
+    .auth-alert {
+      position: fixed;
+      top: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-100px);
+      z-index: 200;
+      padding: 14px 24px;
+      border-radius: 14px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(255,255,255,0.1);
+      transition: transform 0.5s cubic-bezier(0.22,1,0.36,1);
+      max-width: 90%;
+    }
+    .auth-alert.show { transform: translateX(-50%) translateY(0); }
+    .auth-alert.success {
+      background: rgba(34,197,94,0.15);
+      color: #86efac;
+      border-color: rgba(34,197,94,0.3);
+    }
+    .auth-alert.error {
+      background: rgba(239,68,68,0.15);
+      color: #fca5a5;
+      border-color: rgba(239,68,68,0.3);
+    }
+
+    /* ── Floating Particles ──────────────────────────── */
+    .particle {
+      position: absolute;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(244,63,122,0.08), transparent 70%);
+      pointer-events: none;
+      animation: floatP linear infinite;
+    }
+    @keyframes floatP {
+      0%   { transform: translate(0,0) scale(1); opacity: 0; }
+      10%  { opacity: 1; }
+      90%  { opacity: 1; }
+      100% { transform: translate(var(--dx), var(--dy)) scale(var(--se)); opacity: 0; }
+    }
+
+    /* ── Hint text ───────────────────────────────────── */
+    .lamp-hint {
+      position: fixed;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 30;
+      font-size: 0.75rem;
+      color: rgba(255,255,255,0.2);
+      text-align: center;
+      letter-spacing: 0.05em;
+      transition: opacity 0.6s ease;
+    }
+    .lamp-hint.hidden { opacity: 0; }
+
+    /* ── Responsive ──────────────────────────────────── */
+    @media (max-width: 640px) {
+      .slider-wrap { right: 12px; }
+      input[type="range"].lamp-slider { width: 130px; }
+      .login-card { padding: 28px 20px; }
+      .lamp-wrapper { transform: translateX(-50%) scale(0.85); }
+    }
+  </style>
+</head>
+
+<body style="--lamp: 0;">
+
+  <!-- ═══════ CUSTOM CURSOR ═══════ -->
+  <div id="cursor-glow" aria-hidden="true"></div>
+
+  <!-- ═══════ LOADER ═══════ -->
+  <div id="login-loader">
+    <svg class="heart-loader" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color:#f43f7a;">
+      <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>
+    </svg>
+    <p style="color: rgba(244,63,122,0.7); font-size:0.85rem; font-weight:600; letter-spacing:0.12em; margin-top:16px;" class="animate-pulse">Securing Connection...</p>
+    <div class="loader-progress"><div class="loader-progress-bar"></div></div>
+  </div>
+
+  <!-- ═══════ PARTICLES ═══════ -->
+  <div id="particles" style="position:fixed; inset:0; pointer-events:none; z-index:0;" aria-hidden="true"></div>
+
+  <!-- ═══════ AMBIENT GLOW ═══════ -->
+  <div class="ambient-glow"></div>
+
+  <!-- ═══════ SPOTLIGHT CONE ═══════ -->
+  <div class="spotlight-cone"></div>
+
+  <!-- ═══════ LAMP ═══════ -->
+  <div class="lamp-wrapper">
+    <div class="lamp-wire"></div>
+    <div class="lamp-holder"></div>
+    <div class="lamp-bulb"></div>
+  </div>
+
+  <!-- ═══════ BRIGHTNESS SLIDER ═══════ -->
+  <div class="slider-wrap">
+    <span class="slider-label">Brightness</span>
+    <input type="range" class="lamp-slider" id="lamp-slider" min="0" max="100" value="0" aria-label="Adjust lamp brightness" />
+  </div>
+
+  <!-- ═══════ HINT ═══════ -->
+  <div class="lamp-hint" id="lamp-hint">
+    <i data-lucide="lightbulb" style="width:14px; height:14px; display:inline; vertical-align:middle; margin-right:4px;"></i>
+    Slide the brightness to reveal the login form
+  </div>
+
+  <!-- ═══════ ALERT ═══════ -->
+  <div class="auth-alert" id="auth-alert"></div>
+
+  <!-- ═══════════════════════════════════════════════════════
+       LOGIN CARD (User + Admin tabs, Sign-In + Sign-Up)
+  ═══════════════════════════════════════════════════════ -->
+  <div class="login-card" id="login-card">
+
+    <!-- Tab bar: Sign In / Sign Up -->
+    <div class="tab-bar">
+      <button class="tab-btn active" data-tab="signin" id="tab-signin">
+        <i data-lucide="log-in" style="width:15px; height:15px;"></i> Sign In
+      </button>
+      <button class="tab-btn" data-tab="signup" id="tab-signup">
+        <i data-lucide="user-plus" style="width:15px; height:15px;"></i> Sign Up
+      </button>
+    </div>
+
+    <!-- ─────── SIGN IN PANEL ─────── -->
+    <div class="form-panel active" id="panel-signin">
+      <h2 class="login-title">Welcome Back</h2>
+      <p class="login-subtitle">Sign in to access your cardiac dashboard</p>
+
+      <!-- Role selector -->
+      <div class="role-selector">
+        <div class="role-option selected" data-role="user" id="role-user-in">
+          <div class="role-icon">
+            <i data-lucide="user" style="width:22px; height:22px; margin:0 auto;"></i>
+          </div>
+          <div class="role-name">User</div>
+        </div>
+        <div class="role-option" data-role="admin" id="role-admin-in">
+          <div class="role-icon">
+            <i data-lucide="shield" style="width:22px; height:22px; margin:0 auto;"></i>
+          </div>
+          <div class="role-name">Admin</div>
+        </div>
+      </div>
+
+      <form id="signin-form" novalidate>
+        <div class="field-group">
+          <label class="field-label" for="si-email">Email</label>
+          <i data-lucide="mail" class="field-icon"></i>
+          <input class="field-input" type="email" id="si-email" placeholder="you@example.com" required autocomplete="email" />
+          <div class="field-error" id="si-email-err"></div>
+        </div>
+        <div class="field-group">
+          <label class="field-label" for="si-pass">Password</label>
+          <i data-lucide="lock" class="field-icon"></i>
+          <input class="field-input" type="password" id="si-pass" placeholder="Enter password" required autocomplete="current-password" />
+          <button type="button" class="pw-toggle" onclick="togglePw('si-pass', this)" aria-label="Toggle password visibility">
+            <i data-lucide="eye" style="width:16px; height:16px;"></i>
+          </button>
+          <div class="field-error" id="si-pass-err"></div>
+        </div>
+        <button type="submit" class="submit-btn" id="btn-signin">
+          <svg class="btn-spinner" id="spinner-signin" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10" opacity=".25"/><path d="M4 12a8 8 0 018-8" opacity=".75"/></svg>
+          <span id="btn-signin-text">Sign In</span>
+        </button>
+      </form>
+    </div>
+
+    <!-- ─────── SIGN UP PANEL ─────── -->
+    <div class="form-panel" id="panel-signup">
+      <h2 class="login-title">Create Account</h2>
+      <p class="login-subtitle">Join CardioPredict for free health analytics</p>
+
+      <!-- Role selector -->
+      <div class="role-selector">
+        <div class="role-option selected" data-role="user" id="role-user-up">
+          <div class="role-icon">
+            <i data-lucide="user" style="width:22px; height:22px; margin:0 auto;"></i>
+          </div>
+          <div class="role-name">User</div>
+        </div>
+        <div class="role-option" data-role="admin" id="role-admin-up">
+          <div class="role-icon">
+            <i data-lucide="shield" style="width:22px; height:22px; margin:0 auto;"></i>
+          </div>
+          <div class="role-name">Admin</div>
+        </div>
+      </div>
+
+      <form id="signup-form" novalidate>
+        <div class="field-group">
+          <label class="field-label" for="su-name">Full Name</label>
+          <i data-lucide="user" class="field-icon"></i>
+          <input class="field-input" type="text" id="su-name" placeholder="Dr. John Smith" required autocomplete="name" />
+          <div class="field-error" id="su-name-err"></div>
+        </div>
+        <div class="field-group">
+          <label class="field-label" for="su-email">Email</label>
+          <i data-lucide="mail" class="field-icon"></i>
+          <input class="field-input" type="email" id="su-email" placeholder="you@example.com" required autocomplete="email" />
+          <div class="field-error" id="su-email-err"></div>
+        </div>
+        <div class="field-group">
+          <label class="field-label" for="su-pass">Password</label>
+          <i data-lucide="lock" class="field-icon"></i>
+          <input class="field-input" type="password" id="su-pass" placeholder="Min 6 characters" required minlength="6" autocomplete="new-password" />
+          <button type="button" class="pw-toggle" onclick="togglePw('su-pass', this)" aria-label="Toggle password visibility">
+            <i data-lucide="eye" style="width:16px; height:16px;"></i>
+          </button>
+          <div class="field-error" id="su-pass-err"></div>
+        </div>
+        <!-- Admin code field (hidden by default) -->
+        <div class="field-group" id="admin-code-group" style="display:none;">
+          <label class="field-label" for="su-admin-code">Admin Access Code</label>
+          <i data-lucide="key" class="field-icon"></i>
+          <input class="field-input" type="password" id="su-admin-code" placeholder="Enter admin code" />
+          <div class="field-error" id="su-admin-err"></div>
+        </div>
+        <button type="submit" class="submit-btn" id="btn-signup">
+          <svg class="btn-spinner" id="spinner-signup" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10" opacity=".25"/><path d="M4 12a8 8 0 018-8" opacity=".75"/></svg>
+          <span id="btn-signup-text">Create Account</span>
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    /* ============================================================
+       LOGIN PAGE – SCRIPT
+       Lamp effect · Firebase Auth · Firestore Roles · Routing
+       ============================================================ */
+
+    // ══════════════════════════════════════════════════════════
+    // FIREBASE INIT
+    // ══════════════════════════════════════════════════════════
+    // TODO: Replace with YOUR Firebase project config
+    const firebaseConfig = {
+      apiKey:            "AIzaSyDZ3CKkMVRFqQv5jjEZHtxB9v5Pni3wUb4",
+      authDomain:        "disease-prediction-ff405.firebaseapp.com",
+      projectId:         "disease-prediction-ff405",
+      storageBucket:     "disease-prediction-ff405.firebasestorage.app",
+      messagingSenderId: "418439774812",
+      appId:             "1:418439774812:web:80e2cdf2e2dddfd2405c99",
+      measurementId:     "G-P1QHLX0YHS"
+    };
+
+    // The admin code needed to create an admin account
+    const ADMIN_ACCESS_CODE = "CARDIO2026";
+
+    let auth = null, db = null;
+    try {
+      firebase.initializeApp(firebaseConfig);
+      auth = firebase.auth();
+      db   = firebase.firestore();
+    } catch(e) {
+      console.warn("Firebase not configured:", e.message);
+    }
+
+    // ══════════════════════ INIT ICONS ══════════════════════
+    document.addEventListener("DOMContentLoaded", () => {
+      if (window.lucide) lucide.createIcons();
+    });
+
+    // ══════════════════════ LOADER ═══════════════════════════
+    window.addEventListener("load", () => {
+      setTimeout(() => {
+        document.getElementById("login-loader").classList.add("fade-out");
+      }, 2400);
+    });
+
+    // ══════════════════════ CUSTOM CURSOR ════════════════════
+    const cursorEl = document.getElementById("cursor-glow");
+    let cx = 0, cy = 0, rx = 0, ry = 0;
+    document.addEventListener("mousemove", e => { cx = e.clientX; cy = e.clientY; });
+    (function moveCursor() {
+      rx += (cx - rx) * 0.15;
+      ry += (cy - ry) * 0.15;
+      cursorEl.style.left = rx + "px";
+      cursorEl.style.top  = ry + "px";
+      requestAnimationFrame(moveCursor);
+    })();
+    document.querySelectorAll("button, input, .role-option, .tab-btn").forEach(el => {
+      el.addEventListener("mouseenter", () => cursorEl.classList.add("hover"));
+      el.addEventListener("mouseleave", () => cursorEl.classList.remove("hover"));
+    });
+
+    // ══════════════════════ PARTICLES ════════════════════════
+    (function createParticles() {
+      const c = document.getElementById("particles");
+      for (let i = 0; i < 18; i++) {
+        const p = document.createElement("div");
+        p.classList.add("particle");
+        const sz = Math.random() * 100 + 30;
+        p.style.width  = sz + "px";
+        p.style.height = sz + "px";
+        p.style.left   = Math.random() * 100 + "%";
+        p.style.top    = Math.random() * 100 + "%";
+        p.style.setProperty("--dx", (Math.random()-0.5)*250 + "px");
+        p.style.setProperty("--dy", (Math.random()-0.5)*250 + "px");
+        p.style.setProperty("--se", Math.random()*0.5+0.5);
+        p.style.animationDuration = (Math.random()*18+14) + "s";
+        p.style.animationDelay    = (Math.random()*-25) + "s";
+        c.appendChild(p);
+      }
+    })();
+
+    // ══════════════════════ LAMP SLIDER ══════════════════════
+    const slider   = document.getElementById("lamp-slider");
+    const card     = document.getElementById("login-card");
+    const hintEl   = document.getElementById("lamp-hint");
+    let lampValue  = 0;
+
+    slider.addEventListener("input", () => {
+      lampValue = slider.value / 100;
+      document.body.style.setProperty("--lamp", lampValue);
+
+      // Reveal login card when brightness > 40%
+      if (lampValue > 0.4) {
+        card.classList.add("visible");
+        hintEl.classList.add("hidden");
+      } else {
+        card.classList.remove("visible");
+        hintEl.classList.remove("hidden");
+      }
+    });
+
+    // ══════════════════════ TABS ═════════════════════════════
+    document.querySelectorAll(".tab-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+        document.querySelectorAll(".form-panel").forEach(p => p.classList.remove("active"));
+        btn.classList.add("active");
+        document.getElementById("panel-" + btn.dataset.tab).classList.add("active");
+      });
+    });
+
+    // ══════════════════════ ROLE SELECTOR ════════════════════
+    let signinRole = "user";
+    let signupRole = "user";
+
+    // Sign-in role
+    document.querySelectorAll("#panel-signin .role-option").forEach(opt => {
+      opt.addEventListener("click", () => {
+        document.querySelectorAll("#panel-signin .role-option").forEach(o => o.classList.remove("selected"));
+        opt.classList.add("selected");
+        signinRole = opt.dataset.role;
+      });
+    });
+
+    // Sign-up role
+    document.querySelectorAll("#panel-signup .role-option").forEach(opt => {
+      opt.addEventListener("click", () => {
+        document.querySelectorAll("#panel-signup .role-option").forEach(o => o.classList.remove("selected"));
+        opt.classList.add("selected");
+        signupRole = opt.dataset.role;
+        // Show/hide admin code field
+        document.getElementById("admin-code-group").style.display =
+          opt.dataset.role === "admin" ? "block" : "none";
+      });
+    });
+
+    // ══════════════════════ PASSWORD TOGGLE ══════════════════
+    function togglePw(inputId, btn) {
+      const inp = document.getElementById(inputId);
+      const isPassword = inp.type === "password";
+      inp.type = isPassword ? "text" : "password";
+      // Swap icon
+      const icon = btn.querySelector("[data-lucide]");
+      icon.setAttribute("data-lucide", isPassword ? "eye-off" : "eye");
+      if (window.lucide) lucide.createIcons();
+    }
+
+    // ══════════════════════ ALERT ════════════════════════════
+    function showAlert(msg, type) {
+      const el = document.getElementById("auth-alert");
+      el.textContent = msg;
+      el.className = "auth-alert " + type + " show";
+      setTimeout(() => el.classList.remove("show"), 4000);
+    }
+
+    // ══════════════════════ SIGN IN ══════════════════════════
+    document.getElementById("signin-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const email = document.getElementById("si-email").value.trim();
+      const pass  = document.getElementById("si-pass").value;
+
+      // Validate
+      let valid = true;
+      if (!email || !/\S+@\S+\.\S+/.test(email)) {
+        document.getElementById("si-email-err").textContent = "Valid email required";
+        document.getElementById("si-email").classList.add("error");
+        valid = false;
+      } else {
+        document.getElementById("si-email-err").textContent = "";
+        document.getElementById("si-email").classList.remove("error");
+      }
+      if (!pass || pass.length < 6) {
+        document.getElementById("si-pass-err").textContent = "Min 6 characters";
+        document.getElementById("si-pass").classList.add("error");
+        valid = false;
+      } else {
+        document.getElementById("si-pass-err").textContent = "";
+        document.getElementById("si-pass").classList.remove("error");
+      }
+      if (!valid) return;
+
+      // Loading
+      const btn = document.getElementById("btn-signin");
+      const txt = document.getElementById("btn-signin-text");
+      const sp  = document.getElementById("spinner-signin");
+      btn.disabled = true; txt.textContent = "Signing in..."; sp.classList.add("show");
+
+      try {
+        if (!auth) throw new Error("Firebase not configured. Add your config.");
+
+        const cred = await auth.signInWithEmailAndPassword(email, pass);
+        const uid  = cred.user.uid;
+
+        // Check role in Firestore
+        const doc = await db.collection("users").doc(uid).get();
+        const userData = doc.exists ? doc.data() : {};
+        const userRole = userData.role || "user";
+
+        if (signinRole === "admin" && userRole !== "admin") {
+          showAlert("This account does not have admin privileges.", "error");
+          btn.disabled = false; txt.textContent = "Sign In"; sp.classList.remove("show");
+          return;
+        }
+
+        showAlert("Login successful! Redirecting...", "success");
+
+        // Store session info
+        sessionStorage.setItem("cardio_user", JSON.stringify({
+          uid:   uid,
+          email: cred.user.email,
+          name:  userData.name || cred.user.email,
+          role:  userRole,
+        }));
+
+        // Redirect after short delay
+        setTimeout(() => {
+          if (userRole === "admin") {
+            window.location.href = "admin.html";
+          } else {
+            window.location.href = "index.html";
+          }
+        }, 1200);
+
+      } catch (err) {
+        let msg = "Login failed.";
+        if (err.code === "auth/user-not-found") msg = "No account found with this email.";
+        else if (err.code === "auth/wrong-password") msg = "Incorrect password.";
+        else if (err.code === "auth/invalid-credential") msg = "Invalid email or password.";
+        else if (err.code === "auth/too-many-requests") msg = "Too many attempts. Try later.";
+        else msg = err.message;
+        showAlert(msg, "error");
+        btn.disabled = false; txt.textContent = "Sign In"; sp.classList.remove("show");
+      }
+    });
+
+    // ══════════════════════ SIGN UP ══════════════════════════
+    document.getElementById("signup-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const name  = document.getElementById("su-name").value.trim();
+      const email = document.getElementById("su-email").value.trim();
+      const pass  = document.getElementById("su-pass").value;
+      const code  = document.getElementById("su-admin-code").value.trim();
+
+      // Validate
+      let valid = true;
+      if (!name) {
+        document.getElementById("su-name-err").textContent = "Name is required";
+        document.getElementById("su-name").classList.add("error");
+        valid = false;
+      } else {
+        document.getElementById("su-name-err").textContent = "";
+        document.getElementById("su-name").classList.remove("error");
+      }
+      if (!email || !/\S+@\S+\.\S+/.test(email)) {
+        document.getElementById("su-email-err").textContent = "Valid email required";
+        document.getElementById("su-email").classList.add("error");
+        valid = false;
+      } else {
+        document.getElementById("su-email-err").textContent = "";
+        document.getElementById("su-email").classList.remove("error");
+      }
+      if (!pass || pass.length < 6) {
+        document.getElementById("su-pass-err").textContent = "Min 6 characters";
+        document.getElementById("su-pass").classList.add("error");
+        valid = false;
+      } else {
+        document.getElementById("su-pass-err").textContent = "";
+        document.getElementById("su-pass").classList.remove("error");
+      }
+      if (signupRole === "admin" && code !== ADMIN_ACCESS_CODE) {
+        document.getElementById("su-admin-err").textContent = "Invalid admin code";
+        document.getElementById("su-admin-code").classList.add("error");
+        valid = false;
+      } else {
+        document.getElementById("su-admin-err").textContent = "";
+        document.getElementById("su-admin-code").classList.remove("error");
+      }
+      if (!valid) return;
+
+      // Loading
+      const btn = document.getElementById("btn-signup");
+      const txt = document.getElementById("btn-signup-text");
+      const sp  = document.getElementById("spinner-signup");
+      btn.disabled = true; txt.textContent = "Creating account..."; sp.classList.add("show");
+
+      try {
+        if (!auth) throw new Error("Firebase not configured. Add your config.");
+
+        const cred = await auth.createUserWithEmailAndPassword(email, pass);
+        const uid  = cred.user.uid;
+
+        // Save user profile + role to Firestore
+        await db.collection("users").doc(uid).set({
+          name:      name,
+          email:     email,
+          role:      signupRole,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+        });
+
+        showAlert("Account created! Redirecting...", "success");
+
+        sessionStorage.setItem("cardio_user", JSON.stringify({
+          uid:   uid,
+          email: email,
+          name:  name,
+          role:  signupRole,
+        }));
+
+        setTimeout(() => {
+          if (signupRole === "admin") {
+            window.location.href = "admin.html";
+          } else {
+            window.location.href = "index.html";
+          }
+        }, 1200);
+
+      } catch (err) {
+        let msg = "Registration failed.";
+        if (err.code === "auth/email-already-in-use") msg = "Email already registered. Try signing in.";
+        else if (err.code === "auth/weak-password") msg = "Password too weak. Use 6+ characters.";
+        else msg = err.message;
+        showAlert(msg, "error");
+        btn.disabled = false; txt.textContent = "Create Account"; sp.classList.remove("show");
+      }
+    });
+
+    // ══════════════════════ AUTO-REDIRECT IF LOGGED IN ═══════
+    document.addEventListener("DOMContentLoaded", () => {
+      const user = sessionStorage.getItem("cardio_user");
+      if (user) {
+        const data = JSON.parse(user);
+        if (data.role === "admin") {
+          window.location.href = "admin.html";
+        } else {
+          window.location.href = "index.html";
+        }
+      }
+    });
+
+    // Clear field errors on input
+    document.querySelectorAll(".field-input").forEach(inp => {
+      inp.addEventListener("input", () => {
+        inp.classList.remove("error");
+        const errEl = inp.parentElement.querySelector(".field-error");
+        if (errEl) errEl.textContent = "";
+      });
+    });
+  </script>
+</body>
+</html>
